@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   CaretDown,
   Heart,
+  List,
   MagnifyingGlass,
   Minus,
   Plus,
@@ -152,23 +153,27 @@ function AnnouncementBar() {
 }
 
 function Header({ currentPage, onNavigate, cartCount, onCartOpen }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const links = [
     ["home", "Home"],
     ["shop", "Shop"],
-    ["shop:Stickers", "Stickers"],
-    ["shop:Bookmarks", "Bookmarks"],
     ["info", "About"],
     ["info", "FAQ"],
     ["info", "Contact"],
   ];
 
+  function goTo(target) {
+    setMenuOpen(false);
+    onNavigate(target);
+  }
+
   return (
     <header className="site-header">
       <div className="header-top shell">
-        <button className="icon-button" type="button" aria-label="Search products" onClick={() => onNavigate("shop")}>
+        <button className="icon-button" type="button" aria-label="Search products" onClick={() => goTo("shop")}>
           <MagnifyingGlass size={22} />
         </button>
-        <button className="logo" type="button" onClick={() => onNavigate("home")} aria-label="Go to home page">
+        <button className="logo" type="button" onClick={() => goTo("home")} aria-label="Go to home page">
           <span>The</span>
           <strong>Portrait Pocket</strong>
         </button>
@@ -177,19 +182,31 @@ function Header({ currentPage, onNavigate, cartCount, onCartOpen }) {
           <button className="icon-button" type="button" aria-label="Account placeholder">
             <UserCircle size={24} />
           </button>
+          <button
+            className="icon-button menu-toggle"
+            type="button"
+            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={menuOpen}
+            aria-controls="primary-navigation"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? <X size={24} /> : <List size={24} />}
+          </button>
           <button className="icon-button cart-trigger" type="button" aria-label={`Open cart with ${cartCount} items`} onClick={onCartOpen}>
             <ShoppingBag size={24} />
             {cartCount > 0 && <span>{cartCount}</span>}
           </button>
         </div>
       </div>
-      <nav className="main-nav shell" aria-label="Primary navigation">
+      <nav id="primary-navigation" className={`main-nav shell ${menuOpen ? "open" : ""}`} aria-label="Primary navigation">
         {links.map(([target, label]) => (
           <button
             key={`${target}-${label}`}
-            className={currentPage === target || (target.startsWith("shop") && currentPage.startsWith("shop")) ? "active" : ""}
+            className={`${currentPage === target || (target.startsWith("shop") && currentPage.startsWith("shop")) ? "active" : ""} ${
+              target === "shop" ? "shop-link" : ""
+            }`}
             type="button"
-            onClick={() => onNavigate(target)}
+            onClick={() => goTo(target)}
           >
             {label}
           </button>
