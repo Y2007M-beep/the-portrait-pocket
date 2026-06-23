@@ -1,4 +1,4 @@
-name: Deploy The Portrait Pocket
+name: Deploy The Pocket Portrait
 
 on:
   push:
