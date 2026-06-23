@@ -35,7 +35,7 @@
 - Copy/content: Includes the required home, shop, product detail, cart, about/FAQ/contact surfaces. Shipping copy is intentionally light because the user asked to work on shipping later.
 
 **Patches Made During QA**
-- Set the document title to `The Portrait Pocket`.
+- Set the document title to `The Pocket Portrait`.
 - Fixed the hero product image container so the raster artwork appears at desktop and mobile sizes.
 - Removed mobile horizontal overflow by tightening category-card heading sizing and hiding the closed cart drawer from layout calculations.
 - Verified the Bookmarks filter returns 12 products and add-to-cart updates drawer count/subtotal.

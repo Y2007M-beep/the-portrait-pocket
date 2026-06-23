@@ -175,7 +175,7 @@ function Header({ currentPage, onNavigate, cartCount, onCartOpen }) {
         </button>
         <button className="logo" type="button" onClick={() => goTo("home")} aria-label="Go to home page">
           <span>The</span>
-          <strong>Portrait Pocket</strong>
+          <strong>Pocket Portrait</strong>
         </button>
         <div className="header-actions">
           <span className="currency">Sweden | SEK kr</span>
@@ -336,7 +336,7 @@ function HomePage({ onNavigate, onView, onAdd }) {
       <section className="hero">
         <div className="shell hero-inner">
           <div className="hero-copy">
-            <p className="eyebrow">The Portrait Pocket</p>
+            <p className="eyebrow">The Pocket Portrait</p>
             <h1>Small merch with big personality</h1>
             <p>Pins, hairclips, stickers and bookmarks made for tiny collections, cozy desks and everyday pockets.</p>
             <div className="hero-actions">
@@ -407,7 +407,7 @@ function HomePage({ onNavigate, onView, onAdd }) {
           <h2 id="about-title">Made for collectors, readers and cozy little corners.</h2>
         </div>
         <p>
-          The Portrait Pocket gathers illustrated tiny treasures with a handmade feeling: soft colors, gentle characters,
+          The Pocket Portrait gathers illustrated tiny treasures with a handmade feeling: soft colors, gentle characters,
           and pieces that feel personal enough to keep close.
         </p>
         <Button variant="ghost" onClick={() => onNavigate("info")}>
@@ -569,7 +569,7 @@ function InfoPage() {
         <p className="eyebrow">About the pocket</p>
         <h1>A small illustrated shop for tiny keepsakes.</h1>
         <p>
-          The Portrait Pocket is a cozy boutique for soft illustrated bookmarks, stickers, pins and clips. Every product
+          The Pocket Portrait is a cozy boutique for soft illustrated bookmarks, stickers, pins and clips. Every product
           is meant to feel collectible, personal and easy to tuck into everyday life.
         </p>
       </section>
@@ -670,7 +670,7 @@ function Footer({ onNavigate }) {
     <footer className="site-footer">
       <div className="shell footer-inner">
         <div>
-          <h2>The Portrait Pocket</h2>
+          <h2>The Pocket Portrait</h2>
           <p>Tiny illustrated pieces for soft collections, current reads and cozy desks.</p>
         </div>
         <div>
