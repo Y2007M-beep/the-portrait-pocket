@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CaretDown,
@@ -16,6 +16,14 @@ import {
   UserCircle,
   X,
 } from "@phosphor-icons/react";
+import { AdminDashboard } from "./AdminDashboard.jsx";
+import {
+  adminSettings,
+  createAdminProducts,
+  createMockAnalyticsEvents,
+  createMockCheckoutSessions,
+  createMockOrders,
+} from "./adminData.js";
 import accessorySheet from "./assets/accessory-product-sheet.png";
 import bookmarkSheet from "./assets/bookmark-product-sheet.png";
 
@@ -142,6 +150,33 @@ const sheetMap = {
   accessory: accessorySheet,
   bookmark: bookmarkSheet,
 };
+
+const appBasePath = "/the-portrait-pocket";
+
+function createClientId(prefix) {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getSessionId() {
+  const storageKey = "tpp-session-id";
+  const existing = sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+  const sessionId = createClientId("session");
+  sessionStorage.setItem(storageKey, sessionId);
+  return sessionId;
+}
+
+function getInitialPageFromPath() {
+  const path = window.location.pathname.replace(/\/$/, "");
+  return path === "/admin" || path === `${appBasePath}/admin` ? "admin" : "home";
+}
+
+function pageToPath(page) {
+  return page === "admin" ? `${appBasePath}/admin` : `${appBasePath}/`;
+}
 
 function formatPrice(price) {
   return `${price} kr`;
@@ -425,7 +460,7 @@ function HomePage({ onNavigate, onView, onAdd }) {
   );
 }
 
-function ShopPage({ initialCategory = "All", onView, onAdd }) {
+function ShopPage({ initialCategory = "All", onView, onAdd, onTrack }) {
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [sort, setSort] = useState("Featured");
   const [query, setQuery] = useState("");
@@ -445,6 +480,18 @@ function ShopPage({ initialCategory = "All", onView, onAdd }) {
     return result;
   }, [selectedCategory, sort, query]);
 
+  function updateQuery(value) {
+    setQuery(value);
+    if (value.trim().length > 1) {
+      onTrack("search_used", { page: "shop", buttonName: "Search", metadata: { query: value.trim() } });
+    }
+  }
+
+  function updateCategory(category) {
+    setSelectedCategory(category);
+    onTrack("category_filter_used", { page: "shop", buttonName: category, metadata: { category } });
+  }
+
   return (
     <main className="shop-page shell">
       <div className="shop-intro">
@@ -457,7 +504,7 @@ function ShopPage({ initialCategory = "All", onView, onAdd }) {
           <input
             id="product-search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => updateQuery(event.target.value)}
             placeholder="Find tiny treasures"
           />
         </div>
@@ -477,7 +524,7 @@ function ShopPage({ initialCategory = "All", onView, onAdd }) {
             key={category}
             type="button"
             className={selectedCategory === category ? "selected" : ""}
-            onClick={() => setSelectedCategory(category)}
+            onClick={() => updateCategory(category)}
           >
             {category}
           </button>
@@ -600,7 +647,7 @@ function InfoPage() {
   );
 }
 
-function CheckoutPage({ items, onNavigate, onCartOpen, onQuantityChange, onRemove }) {
+function CheckoutPage({ items, onNavigate, onCartOpen, onQuantityChange, onRemove, onPaymentComplete }) {
   const [details, setDetails] = useState({
     email: "",
     fullName: "",
@@ -630,6 +677,7 @@ function CheckoutPage({ items, onNavigate, onCartOpen, onQuantityChange, onRemov
       setMessage("Fill in the required checkout details first.");
       return;
     }
+    onPaymentComplete(details);
     setSubmitted(true);
     setMessage("Your test order is ready for Stripe payment wiring.");
   }
@@ -835,7 +883,7 @@ function CheckoutPage({ items, onNavigate, onCartOpen, onQuantityChange, onRemov
   );
 }
 
-function CartDrawer({ isOpen, items, onClose, onQuantityChange, onRemove, onNavigate }) {
+function CartDrawer({ isOpen, items, onClose, onQuantityChange, onRemove, onNavigate, onCheckoutStart }) {
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   return (
@@ -887,7 +935,7 @@ function CartDrawer({ isOpen, items, onClose, onQuantityChange, onRemove, onNavi
                 className="checkout-button"
                 onClick={() => {
                   onClose();
-                  onNavigate("checkout");
+                  onCheckoutStart();
                 }}
               >
                 Checkout
@@ -937,25 +985,70 @@ function Footer({ onNavigate }) {
 }
 
 export function App() {
-  const [page, setPage] = useState("home");
+  const [page, setPage] = useState(getInitialPageFromPath);
   const [selectedProductId, setSelectedProductId] = useState(products[0].id);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState([]);
+  const [adminProducts, setAdminProducts] = useState(() => createAdminProducts(products));
+  const [orders, setOrders] = useState(() => createMockOrders(products));
+  const [checkoutSessions, setCheckoutSessions] = useState(() => createMockCheckoutSessions(products));
+  const [analyticsEvents, setAnalyticsEvents] = useState(() => createMockAnalyticsEvents(products));
+  const [settings, setSettings] = useState(adminSettings);
+  const sessionId = useMemo(getSessionId, []);
 
   const currentProduct = products.find((product) => product.id === selectedProductId) ?? products[0];
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const currentPage = page.startsWith("shop") ? "shop" : page;
+
+  function trackEvent(eventType, details = {}) {
+    setAnalyticsEvents((events) => [
+      {
+        id: createClientId("EVT"),
+        eventType,
+        page: details.page ?? currentPage,
+        productId: details.productId ?? "",
+        buttonName: details.buttonName ?? "",
+        sessionId,
+        metadata: details.metadata ?? {},
+        createdAt: new Date().toISOString(),
+      },
+      ...events,
+    ]);
+  }
+
+  useEffect(() => {
+    const handlePopState = () => setPage(getInitialPageFromPath());
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    trackEvent("page_view", { page });
+  }, [page]);
 
   function navigate(target) {
     setPage(target);
+    const nextPath = pageToPath(target);
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, "", nextPath);
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function viewProduct(id) {
     setSelectedProductId(id);
+    trackEvent("product_card_click", { page: currentPage, productId: id, buttonName: "View product" });
+    trackEvent("product_view", { page: "product", productId: id });
     navigate("product");
   }
 
   function addToCart(product, quantity) {
+    trackEvent("add_to_cart", {
+      page: currentPage,
+      productId: product.id,
+      buttonName: "Add",
+      metadata: { quantity, price: product.price },
+    });
     setCartItems((items) => {
       const existing = items.find((item) => item.product.id === product.id);
       if (existing) {
@@ -966,6 +1059,94 @@ export function App() {
       return [...items, { product, quantity }];
     });
     setCartOpen(true);
+  }
+
+  function createCheckoutSessionSnapshot(status, details = {}) {
+    const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+    const shippingCost = subtotal >= settings.freeShippingThreshold ? 0 : settings.standardShippingPrice;
+    const now = new Date().toISOString();
+
+    return {
+      id: createClientId("CHK"),
+      sessionId,
+      customerEmail: details.email ?? "",
+      items: cartItems.map((item) => ({
+        productId: item.product.id,
+        name: item.product.name,
+        category: item.product.category,
+        quantity: item.quantity,
+        unitPrice: item.product.price,
+        costPrice: adminProducts.find((product) => product.id === item.product.id)?.costPrice ?? 0,
+        totalPrice: item.product.price * item.quantity,
+      })),
+      subtotal,
+      shippingCost,
+      total: subtotal + shippingCost,
+      status,
+      checkoutStartedAt: now,
+      paymentCompletedAt: status === "Completed" ? now : "",
+      abandonedAt: "",
+      lastActivity: now,
+    };
+  }
+
+  function startCheckout() {
+    const checkoutSnapshot = createCheckoutSessionSnapshot("Started");
+    setCheckoutSessions((sessions) => [
+      checkoutSnapshot,
+      ...sessions.filter((session) => !(session.sessionId === sessionId && session.status === "Started")),
+    ]);
+    trackEvent("checkout_started", {
+      page: "cart",
+      buttonName: "Checkout",
+      metadata: { cartValue: checkoutSnapshot.total, itemCount: cartCount },
+    });
+    navigate("checkout");
+  }
+
+  function completePayment(details) {
+    const completedAt = new Date().toISOString();
+    const completedSession = createCheckoutSessionSnapshot("Completed", details);
+    setCheckoutSessions((sessions) => [
+      {
+        ...completedSession,
+        checkoutStartedAt:
+          sessions.find((session) => session.sessionId === sessionId && session.status === "Started")?.checkoutStartedAt ??
+          completedSession.checkoutStartedAt,
+        paymentCompletedAt: completedAt,
+        lastActivity: completedAt,
+      },
+      ...sessions.filter((session) => !(session.sessionId === sessionId && session.status === "Started")),
+    ]);
+    trackEvent("payment_completed", {
+      page: "checkout",
+      buttonName: "Place test order",
+      metadata: { cartValue: completedSession.total, emailCaptured: Boolean(details.email) },
+    });
+    setOrders((currentOrders) => [
+      {
+        id: `TPP-${String(1000 + currentOrders.length + 1)}`,
+        customerName: details.fullName,
+        customerEmail: details.email,
+        customerPhone: "",
+        shippingAddress: `${details.address}${details.apartment ? `, ${details.apartment}` : ""}, ${details.postalCode} ${details.city}, ${details.country}`,
+        items: completedSession.items,
+        subtotal: completedSession.subtotal,
+        shippingCost: completedSession.shippingCost,
+        total: completedSession.total,
+        paymentStatus: "Paid",
+        orderStatus: "Processing",
+        shippingStatus: "Not packed",
+        shippingProvider: settings.shippingProvider,
+        trackingNumber: "",
+        createdAt: completedAt,
+        paidAt: completedAt,
+        shippedAt: "",
+        deliveredAt: "",
+        notes: details.note,
+      },
+      ...currentOrders,
+    ]);
   }
 
   function updateQuantity(productId, quantity) {
@@ -979,14 +1160,33 @@ export function App() {
   }
 
   const shopCategory = page.startsWith("shop:") ? page.split(":")[1] : "All";
-  const currentPage = page.startsWith("shop") ? "shop" : page;
+
+  if (page === "admin") {
+    return (
+      <AdminDashboard
+        products={adminProducts}
+        setProducts={setAdminProducts}
+        orders={orders}
+        setOrders={setOrders}
+        checkoutSessions={checkoutSessions}
+        analyticsEvents={analyticsEvents}
+        settings={settings}
+        setSettings={setSettings}
+        ProductArt={ProductArt}
+        formatPrice={formatPrice}
+        onStorefront={() => navigate("home")}
+      />
+    );
+  }
 
   return (
     <>
       <AnnouncementBar />
       <Header currentPage={currentPage} onNavigate={navigate} cartCount={cartCount} onCartOpen={() => setCartOpen(true)} />
       {page === "home" && <HomePage onNavigate={navigate} onView={viewProduct} onAdd={addToCart} />}
-      {page.startsWith("shop") && <ShopPage key={shopCategory} initialCategory={shopCategory} onView={viewProduct} onAdd={addToCart} />}
+      {page.startsWith("shop") && (
+        <ShopPage key={shopCategory} initialCategory={shopCategory} onView={viewProduct} onAdd={addToCart} onTrack={trackEvent} />
+      )}
       {page === "product" && <ProductPage product={currentProduct} onNavigate={navigate} onAdd={addToCart} onView={viewProduct} />}
       {page === "info" && <InfoPage />}
       {page === "checkout" && (
@@ -996,6 +1196,7 @@ export function App() {
           onCartOpen={() => setCartOpen(true)}
           onQuantityChange={updateQuantity}
           onRemove={removeItem}
+          onPaymentComplete={completePayment}
         />
       )}
       <Footer onNavigate={navigate} />
@@ -1006,6 +1207,7 @@ export function App() {
         onQuantityChange={updateQuantity}
         onRemove={removeItem}
         onNavigate={navigate}
+        onCheckoutStart={startCheckout}
       />
     </>
   );
