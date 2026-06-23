@@ -1,13 +1,18 @@
 import { useMemo, useState } from "react";
 import {
+  ArrowLeft,
   CaretDown,
+  CheckCircle,
+  CreditCard,
   Heart,
   List,
+  LockKey,
   MagnifyingGlass,
   Minus,
   Plus,
   ShoppingBag,
   Sparkle,
+  Truck,
   UserCircle,
   X,
 } from "@phosphor-icons/react";
@@ -595,6 +600,241 @@ function InfoPage() {
   );
 }
 
+function CheckoutPage({ items, onNavigate, onCartOpen, onQuantityChange, onRemove }) {
+  const [details, setDetails] = useState({
+    email: "",
+    fullName: "",
+    country: "Sweden",
+    address: "",
+    apartment: "",
+    city: "",
+    postalCode: "",
+    note: "",
+  });
+  const [message, setMessage] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+
+  function updateDetail(field, value) {
+    setDetails((current) => ({ ...current, [field]: value }));
+  }
+
+  function submitCheckout(event) {
+    event.preventDefault();
+    if (!items.length) {
+      setMessage("Add a tiny treasure before checking out.");
+      return;
+    }
+    const required = ["email", "fullName", "address", "city", "postalCode"];
+    if (required.some((field) => !details[field].trim())) {
+      setMessage("Fill in the required checkout details first.");
+      return;
+    }
+    setSubmitted(true);
+    setMessage("Your test order is ready for Stripe payment wiring.");
+  }
+
+  if (items.length === 0) {
+    return (
+      <main className="checkout-page shell">
+        <section className="checkout-empty">
+          <p className="eyebrow">Checkout</p>
+          <h1>Your pocket is empty</h1>
+          <p>Add a few tiny treasures, then come back to checkout.</p>
+          <Button onClick={() => onNavigate("shop")}>
+            <ArrowLeft weight="bold" aria-hidden="true" />
+            Back to shop
+          </Button>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="checkout-page shell">
+      <button className="back-link checkout-back" type="button" onClick={() => onNavigate("shop")}>
+        <ArrowLeft size={18} weight="bold" aria-hidden="true" />
+        Back to shop
+      </button>
+      <div className="checkout-intro">
+        <p className="eyebrow">Secure checkout</p>
+        <h1>Finish your tiny order</h1>
+        <p>Confirm your contact details and review the pieces tucked inside your pocket.</p>
+      </div>
+      <div className="checkout-layout">
+        <form className="checkout-panel" onSubmit={submitCheckout}>
+          <section className="checkout-section" aria-labelledby="contact-title">
+            <div className="checkout-section-heading">
+              <CheckCircle weight="fill" aria-hidden="true" />
+              <h2 id="contact-title">Contact</h2>
+            </div>
+            <div className="checkout-fields">
+              <label>
+                Email address
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={details.email}
+                  onChange={(event) => updateDetail("email", event.target.value)}
+                  placeholder="you@example.com"
+                  required
+                />
+              </label>
+              <label>
+                Full name
+                <input
+                  autoComplete="name"
+                  value={details.fullName}
+                  onChange={(event) => updateDetail("fullName", event.target.value)}
+                  placeholder="Your name"
+                  required
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="checkout-section" aria-labelledby="delivery-title">
+            <div className="checkout-section-heading">
+              <Truck weight="fill" aria-hidden="true" />
+              <h2 id="delivery-title">Delivery details</h2>
+            </div>
+            <div className="checkout-fields checkout-fields-two">
+              <label>
+                Country
+                <select
+                  autoComplete="country-name"
+                  value={details.country}
+                  onChange={(event) => updateDetail("country", event.target.value)}
+                >
+                  <option>Sweden</option>
+                  <option>Norway</option>
+                  <option>Denmark</option>
+                  <option>Finland</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
+                Postal code
+                <input
+                  autoComplete="postal-code"
+                  value={details.postalCode}
+                  onChange={(event) => updateDetail("postalCode", event.target.value)}
+                  placeholder="123 45"
+                  required
+                />
+              </label>
+              <label className="wide-field">
+                Address
+                <input
+                  autoComplete="street-address"
+                  value={details.address}
+                  onChange={(event) => updateDetail("address", event.target.value)}
+                  placeholder="Street and number"
+                  required
+                />
+              </label>
+              <label>
+                Apartment
+                <input
+                  autoComplete="address-line2"
+                  value={details.apartment}
+                  onChange={(event) => updateDetail("apartment", event.target.value)}
+                  placeholder="Optional"
+                />
+              </label>
+              <label>
+                City
+                <input
+                  autoComplete="address-level2"
+                  value={details.city}
+                  onChange={(event) => updateDetail("city", event.target.value)}
+                  placeholder="City"
+                  required
+                />
+              </label>
+              <label className="wide-field">
+                Order note
+                <textarea
+                  rows="4"
+                  value={details.note}
+                  onChange={(event) => updateDetail("note", event.target.value)}
+                  placeholder="Gift note or delivery detail"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="checkout-section" aria-labelledby="payment-title">
+            <div className="checkout-section-heading">
+              <CreditCard weight="fill" aria-hidden="true" />
+              <h2 id="payment-title">Payment</h2>
+            </div>
+            <div className="payment-placeholder">
+              <LockKey weight="fill" aria-hidden="true" />
+              <div>
+                <strong>Stripe sandbox checkout</strong>
+                <p>Payment is ready for the next setup step. This button saves a test order in the prototype.</p>
+              </div>
+            </div>
+          </section>
+
+          <div className="checkout-actions">
+            <Button className="checkout-submit" type="submit">
+              <LockKey weight="bold" aria-hidden="true" />
+              Place test order
+            </Button>
+            <p aria-live="polite" className={submitted ? "checkout-success" : ""}>
+              {message}
+            </p>
+          </div>
+        </form>
+
+        <aside className="checkout-summary" aria-labelledby="summary-title">
+          <div className="summary-heading">
+            <div>
+              <p className="eyebrow">Order summary</p>
+              <h2 id="summary-title">Your pocket</h2>
+            </div>
+            <button className="text-link" type="button" onClick={onCartOpen}>
+              Edit cart
+            </button>
+          </div>
+          <div className="summary-items">
+            {items.map((item) => (
+              <div className="summary-item" key={item.product.id}>
+                <ProductArt product={item.product} />
+                <div>
+                  <h3>{item.product.name}</h3>
+                  <p>{formatPrice(item.product.price)}</p>
+                  <QuantityStepper value={item.quantity} onChange={(value) => onQuantityChange(item.product.id, value)} />
+                  <button className="text-link" type="button" onClick={() => onRemove(item.product.id)}>
+                    Remove
+                  </button>
+                </div>
+                <strong>{formatPrice(item.product.price * item.quantity)}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="summary-totals">
+            <div>
+              <span>Subtotal</span>
+              <strong>{formatPrice(subtotal)}</strong>
+            </div>
+            <div>
+              <span>Shipping</span>
+              <strong>Later</strong>
+            </div>
+            <div className="summary-total">
+              <span>Estimated total</span>
+              <strong>{formatPrice(subtotal)}</strong>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  );
+}
+
 function CartDrawer({ isOpen, items, onClose, onQuantityChange, onRemove, onNavigate }) {
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
@@ -643,8 +883,14 @@ function CartDrawer({ isOpen, items, onClose, onQuantityChange, onRemove, onNavi
                 <span>Subtotal</span>
                 <strong>{formatPrice(subtotal)}</strong>
               </div>
-              <Button className="checkout-button" onClick={() => alert("Checkout is a placeholder for this prototype.")}>
-                Checkout placeholder
+              <Button
+                className="checkout-button"
+                onClick={() => {
+                  onClose();
+                  onNavigate("checkout");
+                }}
+              >
+                Checkout
               </Button>
               <button
                 className="text-link"
@@ -656,7 +902,7 @@ function CartDrawer({ isOpen, items, onClose, onQuantityChange, onRemove, onNavi
               >
                 Continue shopping
               </button>
-              <p className="cart-note">Checkout and payment are placeholders until a real provider is chosen.</p>
+              <p className="cart-note">Shipping details will be finalized later.</p>
             </div>
           </>
         )}
@@ -743,6 +989,15 @@ export function App() {
       {page.startsWith("shop") && <ShopPage key={shopCategory} initialCategory={shopCategory} onView={viewProduct} onAdd={addToCart} />}
       {page === "product" && <ProductPage product={currentProduct} onNavigate={navigate} onAdd={addToCart} onView={viewProduct} />}
       {page === "info" && <InfoPage />}
+      {page === "checkout" && (
+        <CheckoutPage
+          items={cartItems}
+          onNavigate={navigate}
+          onCartOpen={() => setCartOpen(true)}
+          onQuantityChange={updateQuantity}
+          onRemove={removeItem}
+        />
+      )}
       <Footer onNavigate={navigate} />
       <CartDrawer
         isOpen={cartOpen}
